@@ -296,6 +296,13 @@ void WaypointNavTool::makeIm(const Ogre::Vector3& position, const Ogre::Quaterni
     server_.setCallback(int_marker.name, boost::bind(&WaypointNavTool::processFeedback, this, _1));
     menu_handler_.apply(server_, int_marker.name);
 
+    //Set the current marker as selected
+    Ogre::Vector3 p = position;
+    Ogre::Quaternion q = quat;
+    frame_->setSelectedMarkerName(wp_name_str);
+    frame_->setWpLabel(p);
+    frame_->setPose(p, q);
+
     server_.applyChanges();
 }
 

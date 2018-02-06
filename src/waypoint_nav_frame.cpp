@@ -445,7 +445,8 @@ void WaypointFrame::setWpLabel(Ogre::Vector3 position)
   //boost::mutex::scoped_lock lock(frame_updates_mutex_);
   std::ostringstream stringStream;
   stringStream.precision(2);
-  stringStream << "x: " << position.x << " y: " << position.y << " z: " << position.z;
+  stringStream << selected_marker_name_;
+  //stringStream << " x: " << position.x << " y: " << position.y << " z: " << position.z;
   std::string label = stringStream.str();
 
   ui_->sel_wp_label->setText(QString::fromStdString(label));
