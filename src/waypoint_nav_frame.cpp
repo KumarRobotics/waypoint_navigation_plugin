@@ -393,6 +393,7 @@ void WaypointFrame::setConfig(QString topic, QString frame, float height)
   }
   topicChanged();
   frameChanged();
+  heightChanged(height);
 }
 
 void WaypointFrame::getPose(Ogre::Vector3& position, Ogre::Quaternion& quat)
