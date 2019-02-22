@@ -227,6 +227,7 @@ void WaypointNavTool::makeIm(const Ogre::Vector3& position, const Ogre::Quaterni
     sn_ptr->attachObject(entity);
     sn_ptr->setVisible(true);
     sn_ptr->setPosition(position);
+    sn_ptr->setOrientation(quat);
 
     M_StringToSNPtr::iterator sn_entry = sn_map_.find(unique_ind_);
 
