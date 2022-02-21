@@ -447,7 +447,7 @@ void WaypointFrame::topicChanged()
 void WaypointFrame::setWpCount(int size)
 {
   std::ostringstream stringStream;
-  stringStream << "num wp: " << size;
+  stringStream << "Total Wp: " << size;
   std::string st = stringStream.str();
 
   boost::mutex::scoped_lock lock(frame_updates_mutex_);
