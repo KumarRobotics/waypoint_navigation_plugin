@@ -518,7 +518,7 @@ void WaypointNavTool::load(const rviz::Config& config)
     topic = "/waypoints";
 
   if(!waypoints_config.mapGetString("frame_id", &frame))
-    frame = "/map";
+    frame = "map";
 
   waypoints_config.mapGetFloat("default_height", &height);
 

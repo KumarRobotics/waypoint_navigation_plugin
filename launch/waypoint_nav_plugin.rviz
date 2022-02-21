@@ -102,8 +102,8 @@ Visualization Manager:
     - Class: waypoint_nav_plugin/WaypointNav
       WaypointsTool:
         default_height: 0
-        frame_id: /map
-        topic: ""
+        frame_id: map
+        topic: "waypoint"
   Value: true
   Views:
     Current:
