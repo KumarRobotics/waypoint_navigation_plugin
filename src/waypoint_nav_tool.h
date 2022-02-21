@@ -29,21 +29,19 @@
 
 /* Author: Dinesh Thakur - Modified for waypoint navigation */
 
-#ifndef WAYPOINT_NAV_FLAG_TOOL_H
-#define WAYPOINT_NAV_FLAG_TOOL_H
+#pragma once
 
-#include <rviz/tool.h>
-
-#include <visualization_msgs/InteractiveMarker.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <interactive_markers/menu_handler.h>
+#include <rviz/tool.h>
+#include <visualization_msgs/InteractiveMarker.h>
 
 #include "waypoint_nav_frame.h"
 namespace Ogre
 {
 class SceneNode;
 class Vector3;
-}
+}  // namespace Ogre
 
 namespace rviz
 {
@@ -51,12 +49,8 @@ class VectorProperty;
 class VisualizationManager;
 class ViewportMouseEvent;
 class PanelDockWidget;
-}
+}  // namespace rviz
 
-namespace Ui
-{
-class QuadrotorSteeringWidget;
-}
 
 namespace waypoint_nav_plugin
 {
@@ -78,10 +72,11 @@ public:
 
   virtual void load(const rviz::Config& config);
   virtual void save(rviz::Config config) const;
-  void makeIm(const Ogre::Vector3& position, const Ogre::Quaternion& quat);
+  void makeIm(const Ogre::Vector3& position, const Ogre::Quaternion& quat,
+              bool full_dof = false);
 
 private:
-  void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
+  void processFeedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr& feedback);
   void getMarkerPoses();
   void clearAllWaypoints();
 
@@ -89,20 +84,18 @@ private:
   std::string flag_resource_;
 
   // the waypoint nav Qt frame
-  WaypointFrame *frame_;
+  WaypointFrame* frame_;
   rviz::PanelDockWidget* frame_dock_;
 
   interactive_markers::InteractiveMarkerServer server_;
   interactive_markers::MenuHandler menu_handler_;
 
-  //map that stores waypoints based on unique names
-  typedef std::map<int, Ogre::SceneNode* > M_StringToSNPtr;
+  // map that stores waypoints based on unique names
+  typedef std::map<int, Ogre::SceneNode*> M_StringToSNPtr;
   M_StringToSNPtr sn_map_;
 
-  //index used for creating unique marker names
+  // index used for creating unique marker names
   int unique_ind_;
 };
 
-} // end namespace waypoint_nav_plugin
-
-#endif // WAYPOINT_NAV_TOOL_H
+}  // end namespace kr_rviz_plugins

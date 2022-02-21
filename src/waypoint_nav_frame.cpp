@@ -36,6 +36,7 @@
 /* Author: Dinesh Thakur - Modified for waypoint navigation */
 
 #include <OGRE/OgreSceneManager.h>
+#include <OGRE/OgreSceneNode.h>
 #include <rviz/display_context.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <rosbag/bag.h>
@@ -47,6 +48,7 @@
 //#include "waypoint_nav_frame.h"
 
 #include <tf/tf.h>
+#include <yaml-cpp/yaml.h>
 
 #include <QFileDialog>
 
@@ -56,6 +58,10 @@
 namespace waypoint_nav_plugin
 {
 
+struct MissionKeywords {
+  inline static const std::string kPosition = "position";
+};
+
 WaypointFrame::WaypointFrame(rviz::DisplayContext *context, std::map<int, Ogre::SceneNode* >* map_ptr, interactive_markers::InteractiveMarkerServer* server, int* unique_ind, QWidget *parent, WaypointNavTool* wp_tool)
   : QWidget(parent)
   , context_(context)
@@ -63,9 +69,9 @@ WaypointFrame::WaypointFrame(rviz::DisplayContext *context, std::map<int, Ogre::
   , sn_map_ptr_(map_ptr)
   , unique_ind_(unique_ind)
   , server_(server)
-  , frame_id_("/map")
+  , frame_id_("map")
   , default_height_(0.0)
-  , selected_marker_name_("waypoint1")
+  , selected_marker_name_(std::string(g_wp_name_prefix) + "1")
   , wp_nav_tool_(wp_tool)
 {
   scene_manager_ = context_->getSceneManager();
@@ -110,113 +116,182 @@ void WaypointFrame::disable()
   hide();
 }
 
-void WaypointFrame::saveButtonClicked()
+void WaypointFrame::saveButtonClicked() 
 {
+  QString filename =
+      QFileDialog::getSaveFileName(0, tr("Save Mission"), "waypoints",
+                                   tr("Mission Files (*.bag *.yaml *.json)"));
 
-  QString filename = QFileDialog::getSaveFileName(0,tr("Save Bag"), "waypoints", tr("Bag Files (*.bag)"));
+  if (filename.isEmpty()) {
+    ROS_ERROR("No mission filename selected");
+    return;
+  }
 
-  if(filename == "")
-    ROS_ERROR("No filename selected");
-  else
-  {
-    QFileInfo info(filename);
-    std::string filn = info.absolutePath().toStdString() + "/" + info.baseName().toStdString() + ".bag";
-    ROS_INFO("saving waypoints to %s", filn.c_str());
-
-    rosbag::Bag bag;
-    try{
-      bag.open(filn, rosbag::bagmode::Write);
-    }
-    catch(rosbag::BagIOException e)
-    {
-      ROS_ERROR("could not open bag %s", filn.c_str());
-      return;
-    }
-
-    nav_msgs::Path path;
-
-    std::map<int, Ogre::SceneNode* >::iterator sn_it;
-    for (sn_it = sn_map_ptr_->begin(); sn_it != sn_map_ptr_->end(); sn_it++)
-    {
-      Ogre::Vector3 position;
-      position = sn_it->second->getPosition();
-
-      geometry_msgs::PoseStamped pos;
-      pos.pose.position.x = position.x;
-      pos.pose.position.y = position.y;
-      pos.pose.position.z = position.z;
-
-      Ogre::Quaternion quat;
-      quat = sn_it->second->getOrientation();
-      pos.pose.orientation.x = quat.x;
-      pos.pose.orientation.y = quat.y;
-      pos.pose.orientation.z = quat.z;
-      pos.pose.orientation.w = quat.w;
-
-      path.poses.push_back(pos);
-    }
-
-    path.header.frame_id = frame_id_.toStdString();
-
-    bag.write("waypoints", ros::Time::now(), path);
-    bag.close();
+  const std::string filename_str = filename.toStdString();
+  ROS_INFO_STREAM("saving waypoints to " << filename_str);
+  if (filename.endsWith(".bag")) {
+    saveToBag(filename_str);
+  } else if (filename.endsWith(".yaml")) {
+    saveToYaml(filename_str);
+  } else if (filename.endsWith(".json")) {
+    saveToJson(filename_str);
+  } else {
+    ROS_INFO_STREAM("Invalid mission file format: " << filename_str);
   }
 }
 
-void WaypointFrame::loadButtonClicked()
+void WaypointFrame::saveToBag(const std::string &filename) 
 {
-  QString filename = QFileDialog::getOpenFileName(0,tr("Open Bag"), "~/", tr("Bag Files (*.bag)"));
+  rosbag::Bag bag;
+  try {
+    bag.open(filename, rosbag::bagmode::Write);
+  } catch (const rosbag::BagIOException &e) {
+    ROS_ERROR("could not open bag %s", filename.c_str());
+    return;
+  }
 
-  if(filename == "")
-    ROS_ERROR("No filename selected");
-  else
+  nav_msgs::Path path;
+
+  std::map<int, Ogre::SceneNode *>::iterator sn_it;
+  for (sn_it = sn_map_ptr_->begin(); sn_it != sn_map_ptr_->end(); ++sn_it) 
   {
-    //Clear existing waypoints
-    clearAllWaypoints();
+    Ogre::Vector3 position;
+    position = sn_it->second->getPosition();
 
-    std::string filn = filename.toStdString();
-    ROS_INFO("loading waypoints from %s", filn.c_str());
+    geometry_msgs::PoseStamped pos;
+    pos.pose.position.x = position.x;
+    pos.pose.position.y = position.y;
+    pos.pose.position.z = position.z;
 
-    rosbag::Bag bag;
-    try{
-      bag.open(filn, rosbag::bagmode::Read);
+    Ogre::Quaternion quat;
+    quat = sn_it->second->getOrientation();
+    pos.pose.orientation.x = quat.x;
+    pos.pose.orientation.y = quat.y;
+    pos.pose.orientation.z = quat.z;
+    pos.pose.orientation.w = quat.w;
+
+    path.poses.push_back(pos);
+  }
+
+  path.header.frame_id = frame_id_.toStdString();
+
+  bag.write("waypoints", ros::Time::now(), path);
+  bag.close();
+}
+
+void WaypointFrame::saveToYaml(const std::string &filename) {
+  YAML::Emitter out;
+  std::map<int, Ogre::SceneNode *>::iterator sn_it;
+  out << YAML::BeginSeq;
+  for (sn_it = sn_map_ptr_->begin(); sn_it != sn_map_ptr_->end(); ++sn_it) {
+    const Ogre::Vector3 position = sn_it->second->getPosition();
+
+    out << YAML::BeginMap;
+    out << YAML::Key << MissionKeywords::kPosition;
+    out << YAML::Value;
+    out << YAML::Flow;
+    out << YAML::BeginSeq;
+    out << position.x << position.y << position.z;
+    out << YAML::EndSeq;
+    out << YAML::EndMap;
+  }
+  out << YAML::EndSeq;
+
+  std::ofstream fout(filename);
+  fout << out.c_str();
+}
+
+void WaypointFrame::saveToJson(const std::string &filename) {}
+
+void WaypointFrame::loadButtonClicked() {
+  const QString filename = QFileDialog::getOpenFileName(
+      0, tr("Load Mission"), "~/", tr("Mission Files (*.bag *.yaml *.json)"));
+
+  if (filename.isEmpty()) {
+    ROS_ERROR("No mission file selected");
+    return;
+  }
+
+  const std::string filename_str = filename.toStdString();
+  ROS_INFO("loading waypoints from %s", filename_str.c_str());
+  if (filename.endsWith(".bag")) {
+    loadFromBag(filename_str);
+  } else if (filename.endsWith(".yaml")) {
+    loadFromYaml(filename_str);
+  } else if (filename.endsWith(".json")) {
+    loadFromJson(filename_str);
+  } else {
+    ROS_INFO_STREAM("Invalid mission file format: " << filename_str);
+  }
+}
+
+void WaypointFrame::loadFromBag(const std::string &filename) {
+  rosbag::Bag bag;
+  try {
+    bag.open(filename, rosbag::bagmode::Read);
+  } catch (const rosbag::BagIOException &e) {
+    ROS_ERROR("could not open bag %s", filename.c_str());
+    return;
+  }
+
+  std::vector<std::string> topics;
+  topics.push_back(std::string("waypoints"));
+  rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+  BOOST_FOREACH (rosbag::MessageInstance const m, view) {
+    nav_msgs::Path::ConstPtr p = m.instantiate<nav_msgs::Path>();
+    if (p == nullptr) continue;
+    ROS_INFO("n waypoints %zu", p->poses.size());
+
+    for (size_t i = 0; i < p->poses.size(); i++) {
+      geometry_msgs::PoseStamped pos = p->poses[i];
+      Ogre::Vector3 position;
+      position.x = pos.pose.position.x;
+      position.y = pos.pose.position.y;
+      position.z = pos.pose.position.z;
+
+      Ogre::Quaternion quat;
+      quat.x = pos.pose.orientation.x;
+      quat.y = pos.pose.orientation.y;
+      quat.z = pos.pose.orientation.z;
+      quat.w = pos.pose.orientation.w;
+
+      wp_nav_tool_->makeIm(position, quat,
+                           ui_->sixDcheckBox->checkState() == Qt::Checked);
     }
-    catch(rosbag::BagIOException e)
-    {
-      ROS_ERROR("could not open bag %s", filn.c_str());
-      return;
-    }
+  }
+}
 
-    std::vector<std::string> topics;
-    topics.push_back(std::string("waypoints"));
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
+void WaypointFrame::loadFromYaml(const std::string &filename) {
+  YAML::Node root_node = YAML::LoadFile(filename);
 
-    foreach(rosbag::MessageInstance const m, view)
-    {
-      nav_msgs::Path::ConstPtr p = m.instantiate<nav_msgs::Path>();
-      if (p != NULL)
-      {
-        ROS_INFO("n waypoints %d", p->poses.size());
+  // Iterate over each waypoint
+  for (auto it_wpt = root_node.begin(); it_wpt != root_node.end(); ++it_wpt) {
+    // Get waypoint node, which is a list of key-value pairs
+    YAML::Node wpt_node = *it_wpt;
+    // IMPORTANT UPDATES: publish one set of waypoints, instead of iterating and
+    // publishing multiple duplicate sets (thus, adding the last line of this
+    // function)
+    for (auto it_map = wpt_node.begin(); it_map != wpt_node.end(); ++it_map) {
+      // Do stuff depends on the key
+      const std::string key = it_map->first.as<std::string>();
+      if (key == MissionKeywords::kPosition) {
+        YAML::Node pos_node = it_map->second;
 
-        for(int i = 0; i < p->poses.size(); i++)
-        {
-          geometry_msgs::PoseStamped pos = p->poses[i];
-          Ogre::Vector3 position;
-          position.x = pos.pose.position.x;
-          position.y = pos.pose.position.y;
-          position.z = pos.pose.position.z;
-
-          Ogre::Quaternion quat;
-          quat.x = pos.pose.orientation.x;
-          quat.y = pos.pose.orientation.y;
-          quat.z = pos.pose.orientation.z;
-          quat.w = pos.pose.orientation.w;
-
-          wp_nav_tool_->makeIm(position, quat);
-        }
+        Ogre::Vector3 position;
+        position.x = pos_node[0].as<double>();
+        position.y = pos_node[1].as<double>();
+        position.z = pos_node[2].as<double>();
+        ROS_WARN_STREAM("add waypoint whose x y z are: " << position.x << ", "
+                                                         << position.y << ", "
+                                                         << position.z);
+        Ogre::Quaternion quat;
+        wp_nav_tool_->makeIm(position, quat,
+                             ui_->sixDcheckBox->checkState() == Qt::Checked);
       }
     }
   }
+  publishButtonClicked();
 }
 
 void WaypointFrame::publishButtonClicked()
@@ -277,11 +352,16 @@ void WaypointFrame::setSelectedMarkerName(std::string name)
   selected_marker_name_ = name;
 }
 
-void WaypointFrame::poseChanged(double val)
-{
-
-  std::map<int, Ogre::SceneNode *>::iterator sn_entry =
-      sn_map_ptr_->find(std::stoi(selected_marker_name_.substr(8)));
+void WaypointFrame::poseChanged(double val) {
+  auto sn_entry = sn_map_ptr_->end();
+  try {
+    const int selected_marker_idx =
+        std::stoi(selected_marker_name_.substr(strlen(g_wp_name_prefix)));
+    sn_entry = sn_map_ptr_->find(selected_marker_idx);
+  } catch (const std::logic_error &e) {
+    ROS_ERROR_STREAM(e.what());
+    return;
+  }
 
   if (sn_entry == sn_map_ptr_->end())
     ROS_ERROR("%s not found in map", selected_marker_name_.c_str());
@@ -295,7 +375,7 @@ void WaypointFrame::poseChanged(double val)
     sn_entry->second->setOrientation(quat);
 
     std::stringstream wp_name;
-    wp_name << "waypoint" << sn_entry->first;
+    wp_name << g_wp_name_prefix << sn_entry->first;
     std::string wp_name_str(wp_name.str());
 
     visualization_msgs::InteractiveMarker int_marker;
@@ -414,7 +494,7 @@ void WaypointFrame::getPose(Ogre::Vector3& position, Ogre::Quaternion& quat)
   }
 }
 
-void WaypointFrame::setPose(Ogre::Vector3& position, Ogre::Quaternion& quat)
+void WaypointFrame::setPose(const Ogre::Vector3& position, const Ogre::Quaternion& quat)
 {
   {
   //boost::mutex::scoped_lock lock(frame_updates_mutex_);
