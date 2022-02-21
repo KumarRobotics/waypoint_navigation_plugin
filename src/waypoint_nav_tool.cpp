@@ -287,6 +287,28 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
     int_marker.controls.push_back(control);
 
+    if (full_dof) {
+      control.orientation.w = 1;
+      control.orientation.x = 1;
+      control.orientation.y = 0;
+      control.orientation.z = 0;
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
+      int_marker.controls.push_back(control);
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
+      int_marker.controls.push_back(control);
+      control.orientation.w = 1;
+      control.orientation.x = 0;
+      control.orientation.y = 0;
+      control.orientation.z = 1;
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
+      int_marker.controls.push_back(control);
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
+      int_marker.controls.push_back(control);
+    }
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MENU;
     control.name = "menu_delete";
     int_marker.controls.push_back(control);
