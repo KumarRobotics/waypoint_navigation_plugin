@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(waypoint_navigation_plugin)
-find_package(catkin REQUIRED COMPONENTS rviz rosbag)
-catkin_package()
-include_directories(${catkin_INCLUDE_DIRS})
-link_directories(${catkin_LIBRARY_DIRS})
 
 find_package(yaml-cpp REQUIRED)
+find_package(catkin REQUIRED COMPONENTS rviz rosbag)
+catkin_package()
+
+include_directories(${catkin_INCLUDE_DIRS})
+link_directories(${catkin_LIBRARY_DIRS})
 
 if(rviz_QT_VERSION VERSION_LESS "5")
   find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
@@ -64,7 +65,7 @@ target_link_libraries(${LIB_NAME}
 
 ## Install rules
 
-install(DIRECTORY ./
+install(DIRECTORY src/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h")
 
@@ -74,8 +75,6 @@ install(TARGETS ${LIB_NAME}
 
 ## Install rules
 install(FILES
-  #plugin_description.xml
-  #camera_plugin_description.xml
   waypoint_nav_plugin_description.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
