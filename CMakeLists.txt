@@ -5,6 +5,8 @@ catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
 
+find_package(yaml-cpp REQUIRED)
+
 if(rviz_QT_VERSION VERSION_LESS "5")
   find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
   include(${QT_USE_FILE})
@@ -58,7 +60,7 @@ set(SOURCE_FILES
 set(LIB_NAME waypoint_nav_plugin)
 add_library(${LIB_NAME} ${SOURCE_FILES} ${MOC_SOURCES} ${UIC_FILES})
 target_link_libraries(${LIB_NAME}
-  ${catkin_LIBRARIES} ${QT_LIBRARIES})
+  ${catkin_LIBRARIES} ${QT_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 ## Install rules
 
