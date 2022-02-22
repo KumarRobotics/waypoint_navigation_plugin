@@ -55,7 +55,7 @@ class SceneNode;
 class Vector3;
 class SceneManager;
 class Quaternion;
-}
+}  // namespace Ogre
 
 namespace rviz
 {
@@ -80,6 +80,8 @@ class WaypointNavTool;
 namespace waypoint_nav_plugin
 {
 
+constexpr char g_wp_name_prefix[] = "waypoint_";
+
 class WaypointFrame : public QWidget
 {
   friend class WaypointNavTool;
@@ -96,17 +98,24 @@ public:
   void setConfig(QString topic, QString frame, float height);
   void setWpLabel(Ogre::Vector3 position);
   void setSelectedMarkerName(std::string name);
-  void setPose(Ogre::Vector3& position, Ogre::Quaternion& quat);
-
+  void setPose(const Ogre::Vector3& position, const Ogre::Quaternion& quat);
 
   double getDefaultHeight();
   QString getFrameId();
   QString getOutputTopic();
   void getPose(Ogre::Vector3& position, Ogre::Quaternion& quat);
 
-protected:
+  // Save/Load
+  void loadFromBag(const std::string& filename);
+  void loadFromYaml(const std::string& filename);
+  void loadFromJson(const std::string& filename);
 
-  Ui::WaypointNavigationWidget *ui_;
+  void saveToBag(const std::string& filename);
+  void saveToYaml(const std::string& filename);
+  void saveToJson(const std::string& filename);
+
+ protected:
+  Ui::WaypointNavigationWidget* ui_;
   rviz::DisplayContext* context_;
 
 private Q_SLOTS:

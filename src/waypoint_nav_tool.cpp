@@ -34,17 +34,15 @@
 #include <OGRE/OgreEntity.h>
 
 #include <ros/console.h>
-
+#include <geometry_msgs/PoseStamped.h>
 #include <rviz/viewport_mouse_event.h>
 #include <rviz/visualization_manager.h>
-#include <rviz/mesh_loader.h>
 #include <rviz/geometry.h>
-#include <rviz/properties/vector_property.h>
-#include <rviz/window_manager_interface.h>
-#include <rviz/validate_floats.h>
+#include <rviz/mesh_loader.h>
 #include <rviz/panel_dock_widget.h>
-
-#include <geometry_msgs/PoseStamped.h>
+#include <rviz/properties/vector_property.h>
+#include <rviz/validate_floats.h>
+#include <rviz/window_manager_interface.h>
 
 #include "waypoint_nav_tool.h"
 
@@ -140,7 +138,6 @@ void WaypointNavTool::deactivate()
   {
     moving_flag_node_->setVisible(false);
   }
-
 }
 
 // Handling mouse events
@@ -181,7 +178,7 @@ int WaypointNavTool::processMouseEvent(rviz::ViewportMouseEvent& event)
         {
           sn_it->second->detachAllObjects();
           std::stringstream wp_name;
-          wp_name << "waypoint" << sn_it->first;
+          wp_name << g_wp_name_prefix << sn_it->first;
           std::string wp_name_str(wp_name.str());
           server_.erase(wp_name_str);
           server_.applyChanges();
@@ -196,7 +193,7 @@ int WaypointNavTool::processMouseEvent(rviz::ViewportMouseEvent& event)
     //add a waypoint
     if(event.leftDown())
     {
-      makeIm(intersection, quat);
+      makeIm(intersection, quat, frame_->ui_->sixDcheckBox->checkState() == Qt::Checked);
       return Render | Finished;
     }
   }
@@ -207,13 +204,14 @@ int WaypointNavTool::processMouseEvent(rviz::ViewportMouseEvent& event)
   return Render;
 }
 
-void WaypointNavTool::makeIm(const Ogre::Vector3& position, const Ogre::Quaternion& quat)
+void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
+                             const Ogre::Quaternion &quat, bool full_dof) 
 {
-    unique_ind_++; //increment the index for unique marker names
+  unique_ind_++;  // increment the index for unique marker names
 
-    std::stringstream wp_name;
-    wp_name << "waypoint" << unique_ind_;
-    std::string wp_name_str(wp_name.str());
+  std::stringstream wp_name;
+  wp_name << g_wp_name_prefix << unique_ind_;
+  std::string wp_name_str(wp_name.str());
 
     if(rviz::loadMeshFromResource(flag_resource_).isNull())
     {
@@ -289,6 +287,28 @@ void WaypointNavTool::makeIm(const Ogre::Vector3& position, const Ogre::Quaterni
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
     int_marker.controls.push_back(control);
 
+    if (full_dof) {
+      control.orientation.w = 1;
+      control.orientation.x = 1;
+      control.orientation.y = 0;
+      control.orientation.z = 0;
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
+      int_marker.controls.push_back(control);
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
+      int_marker.controls.push_back(control);
+      control.orientation.w = 1;
+      control.orientation.x = 0;
+      control.orientation.y = 0;
+      control.orientation.z = 1;
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
+      int_marker.controls.push_back(control);
+      control.interaction_mode =
+          visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
+      int_marker.controls.push_back(control);
+    }
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MENU;
     control.name = "menu_delete";
     int_marker.controls.push_back(control);
@@ -316,7 +336,7 @@ void WaypointNavTool::processFeedback(
     {
 
      M_StringToSNPtr::iterator sn_entry =
-        sn_map_.find(std::stoi(feedback->marker_name.substr(8)));
+        sn_map_.find(std::stoi(feedback->marker_name.substr(strlen(g_wp_name_prefix))));
       if (sn_entry == sn_map_.end())
         ROS_ERROR("%s not found in map", feedback->marker_name.c_str());
       else
@@ -326,7 +346,7 @@ void WaypointNavTool::processFeedback(
         {
           //Delete selected waypoint
           std::stringstream wp_name;
-          wp_name << "waypoint" << sn_entry->first;
+          wp_name << g_wp_name_prefix << sn_entry->first;
           std::string wp_name_str(wp_name.str());
           server_.erase(wp_name_str);
 
@@ -370,7 +390,7 @@ void WaypointNavTool::processFeedback(
       break;
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE:
     {
-      M_StringToSNPtr::iterator sn_entry = sn_map_.find(std::stoi(feedback->marker_name.substr(8)));
+      M_StringToSNPtr::iterator sn_entry = sn_map_.find(std::stoi(feedback->marker_name.substr(strlen(g_wp_name_prefix))));
 
       if (sn_entry == sn_map_.end())
         ROS_ERROR("%s not found in map", feedback->marker_name.c_str());
@@ -412,7 +432,7 @@ void WaypointNavTool::getMarkerPoses()
     visualization_msgs::InteractiveMarker int_marker;
 
     std::stringstream wp_name;
-    wp_name << "waypoint" << sn_it->first;
+    wp_name << g_wp_name_prefix << sn_it->first;
     std::string wp_name_str(wp_name.str());
     server_.get(wp_name_str, int_marker);
 
@@ -498,7 +518,7 @@ void WaypointNavTool::load(const rviz::Config& config)
     topic = "/waypoints";
 
   if(!waypoints_config.mapGetString("frame_id", &frame))
-    frame = "/map";
+    frame = "map";
 
   waypoints_config.mapGetFloat("default_height", &height);
 
