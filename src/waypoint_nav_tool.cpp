@@ -256,7 +256,7 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
     int_marker.pose = pos.pose;
     int_marker.scale = 2;
     int_marker.name = wp_name_str;
-    int_marker.description = wp_name_str;
+    //int_marker.description = wp_name_str;
 
     // create a cylinder marker
     visualization_msgs::Marker cyn_marker;
@@ -278,9 +278,9 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
     int_marker.controls.push_back(cyn_control);
 
     visualization_msgs::InteractiveMarkerControl control;
-    control.orientation.w = 1;
+    control.orientation.w = 0.707106781;
     control.orientation.x = 0;
-    control.orientation.y = 1;
+    control.orientation.y = 0.707106781;
     control.orientation.z = 0;
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
     int_marker.controls.push_back(control);
@@ -288,8 +288,8 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
     int_marker.controls.push_back(control);
 
     if (full_dof) {
-      control.orientation.w = 1;
-      control.orientation.x = 1;
+      control.orientation.w = 0.707106781;
+      control.orientation.x = 0.707106781;
       control.orientation.y = 0;
       control.orientation.z = 0;
       control.interaction_mode =
@@ -298,10 +298,10 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
       control.interaction_mode =
           visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
       int_marker.controls.push_back(control);
-      control.orientation.w = 1;
+      control.orientation.w = 0.707106781;
       control.orientation.x = 0;
       control.orientation.y = 0;
-      control.orientation.z = 1;
+      control.orientation.z = 0.707106781;
       control.interaction_mode =
           visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE;
       int_marker.controls.push_back(control);
@@ -311,6 +311,7 @@ void WaypointNavTool::makeIm(const Ogre::Vector3 &position,
     }
     control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MENU;
     control.name = "menu_delete";
+    control.description = wp_name_str;
     int_marker.controls.push_back(control);
 
     server_.insert(int_marker);
